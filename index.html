@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Input & Device Diagnostic Tool</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    h2 { border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+    .section { margin-bottom: 30px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.05); }
+    pre { background: #eee; padding: 10px; overflow-x: auto; }
+    #dropzone { border: 2px dashed #aaa; padding: 20px; text-align: center; background: #fafafa; }
+    .green { color: green; }
+    .red { color: red; }
+  </style>
+</head>
+<body>
+
+  <h1>Input & Device Diagnostic Tool</h1>
+
+  <div class="section" id="keyboard">
+    <h2>Keyboard Test</h2>
+    <p>Press any key:</p>
+    <pre id="keyLog"></pre>
+  </div>
+
+  <div class="section" id="mouse">
+    <h2>Mouse Test</h2>
+    <p>Move, click, or scroll inside this box:</p>
+    <pre id="mouseLog"></pre>
+  </div>
+
+  <div class="section" id="touch">
+    <h2>Touch Test</h2>
+    <p>Try tapping/swiping on a touchscreen.</p>
+    <pre id="touchLog"></pre>
+  </div>
+
+  <div class="section" id="gpu">
+    <h2>GPU Info</h2>
+    <pre id="gpuInfo"></pre>
+  </div>
+
+  <div class="section" id="battery">
+    <h2>Battery Info</h2>
+    <pre id="batteryInfo"></pre>
+  </div>
+
+  <div class="section" id="gamepad">
+    <h2>Gamepad Test</h2>
+    <pre id="gamepadInfo">Connect a gamepad and press any button.</pre>
+  </div>
+
+  <div class="section" id="clipboard">
+    <h2>Clipboard Test</h2>
+    <button onclick="readClipboard()">Read Clipboard</button>
+    <pre id="clipboardText"></pre>
+  </div>
+
+  <div class="section" id="network">
+    <h2>Network Info</h2>
+    <pre id="netInfo"></pre>
+  </div>
+
+  <div class="section" id="geo">
+    <h2>Geolocation Test</h2>
+    <button onclick="getGeo()">Get Location</button>
+    <pre id="geoOut"></pre>
+  </div>
+
+  <div class="section" id="media">
+    <h2>Camera & Microphone Test</h2>
+    <video autoplay playsinline width="200"></video>
+    <p>Allow access to webcam/mic above.</p>
+  </div>
+
+  <div class="section" id="drop">
+    <h2>File Drag & Drop</h2>
+    <div id="dropzone">Drop files here</div>
+    <pre id="dropInfo"></pre>
+  </div>
+
+  <div class="section" id="vibrate">
+    <h2>Vibration Test (Mobile)</h2>
+    <button onclick="vibrate()">Vibrate</button>
+  </div>
+
+  <div class="section" id="storage">
+    <h2>Local Storage Test</h2>
+    <pre id="storageTest"></pre>
+  </div>
+
+  <div class="section" id="time">
+    <h2>System Time Info</h2>
+    <pre id="timeInfo"></pre>
+  </div>
+
+  <script>
+    // Keyboard
+    document.addEventListener("keydown", e => {
+      document.getElementById("keyLog").textContent = `Key: ${e.key}\nCode: ${e.code}`;
+    });
+
+    // Mouse
+    const mouseLog = document.getElementById("mouseLog");
+    document.addEventListener("mousemove", e => {
+      mouseLog.textContent = `X: ${e.clientX}, Y: ${e.clientY}`;
+    });
+    document.addEventListener("mousedown", e => {
+      mouseLog.textContent += `\nClick: ${e.button}`;
+    });
+    document.addEventListener("wheel", e => {
+      mouseLog.textContent += `\nScroll delta: ${e.deltaY}`;
+    });
+
+    // Touch
+    document.addEventListener("touchstart", e => {
+      const t = e.touches[0];
+      document.getElementById("touchLog").textContent = `Touch at X: ${t.clientX}, Y: ${t.clientY}`;
+    });
+
+    // GPU
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl');
+    const debug = gl.getExtension('WEBGL_debug_renderer_info');
+    const gpu = debug ? gl.getParameter(debug.UNMASKED_RENDERER_WEBGL) : 'Unavailable';
+    document.getElementById("gpuInfo").textContent = gpu;
+
+    // Battery
+    navigator.getBattery().then(battery => {
+      function updateBattery() {
+        document.getElementById("batteryInfo").textContent = 
+          `Level: ${Math.round(battery.level * 100)}%\nCharging: ${battery.charging}`;
+      }
+      battery.addEventListener('chargingchange', updateBattery);
+      battery.addEventListener('levelchange', updateBattery);
+      updateBattery();
+    });
+
+    // Gamepad
+    setInterval(() => {
+      const pads = navigator.getGamepads();
+      if (pads[0]) {
+        let str = `ID: ${pads[0].id}\nButtons: ${pads[0].buttons.map(b => b.pressed).join(', ')}`;
+        document.getElementById("gamepadInfo").textContent = str;
+      }
+    }, 500);
+
+    // Clipboard
+    async function readClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById("clipboardText").textContent = text;
+      } catch {
+        document.getElementById("clipboardText").textContent = "Permission denied or unsupported.";
+      }
+    }
+
+    // Network
+    const conn = navigator.connection || {};
+    document.getElementById("netInfo").textContent = 
+      `Type: ${conn.effectiveType || 'Unknown'}\nDownlink: ${conn.downlink || '?'} Mbps`;
+
+    // Geolocation
+    function getGeo() {
+      navigator.geolocation.getCurrentPosition(pos => {
+        document.getElementById("geoOut").textContent =
+          `Lat: ${pos.coords.latitude}, Lon: ${pos.coords.longitude}`;
+      }, err => {
+        document.getElementById("geoOut").textContent = `Error: ${err.message}`;
+      });
+    }
+
+    // Webcam & Mic
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        document.querySelector("video").srcObject = stream;
+      }).catch(() => {
+        document.querySelector("video").outerHTML = "<p>Access denied or unsupported.</p>";
+      });
+
+    // Drag & Drop
+    const dz = document.getElementById("dropzone");
+    dz.addEventListener("dragover", e => e.preventDefault());
+    dz.addEventListener("drop", e => {
+      e.preventDefault();
+      const files = [...e.dataTransfer.files].map(f => `${f.name} (${f.type}, ${f.size} bytes)`).join('\n');
+      document.getElementById("dropInfo").textContent = files;
+    });
+
+    // Vibration
+    function vibrate() {
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200]);
+      } else {
+        alert("Vibration not supported.");
+      }
+    }
+
+    // Storage Test
+    try {
+      localStorage.setItem("diagnostic_test", "success");
+      const val = localStorage.getItem("diagnostic_test");
+      document.getElementById("storageTest").textContent = `LocalStorage: ${val}`;
+    } catch {
+      document.getElementById("storageTest").textContent = `LocalStorage not supported.`;
+    }
+
+    // Time Info
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const offset = new Date().getTimezoneOffset();
+    document.getElementById("timeInfo").textContent = `Time Zone: ${tz}\nOffset (min): ${offset}`;
+  </script>
+
+</body>
+</html>
